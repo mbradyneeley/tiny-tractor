@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Tiny Tractor 🚜 — Keyboard Smash for Little Kids</title>
+<style>
+  :root {
+    --sky-1: #ffd89b;
+    --sky-2: #87ceeb;
+    --grass-1: #7ac74f;
+    --grass-2: #5aa339;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: linear-gradient(to bottom, var(--sky-1) 0%, var(--sky-2) 45%, var(--grass-1) 60%, var(--grass-2) 100%);
+    font-family: 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    cursor: default;
+  }
+  canvas { display: block; position: fixed; top: 0; left: 0; width: 100%; height: 100%; }
+  #overlay {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+    z-index: 10;
+  }
+  #start-screen {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.9), rgba(255,235,200,0.8));
+    z-index: 100;
+    text-align: center;
+    padding: 20px;
+  }
+  #start-screen h1 {
+    font-size: clamp(2.5rem, 8vw, 5rem);
+    color: #d63031;
+    text-shadow: 4px 4px 0 #fff, 8px 8px 0 rgba(0,0,0,0.15);
+    letter-spacing: -2px;
+  }
+  #start-screen p {
+    font-size: clamp(1rem, 2.5vw, 1.5rem);
+    color: #2d3436;
+    max-width: 600px;
+    line-height: 1.5;
+  }
+  #start-btn {
+    background: #d63031;
+    color: white;
+    border: none;
+    padding: 20px 50px;
+    font-size: clamp(1.2rem, 3vw, 2rem);
+    font-family: inherit;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 8px 0 #a82828, 0 12px 20px rgba(0,0,0,0.2);
+    transition: transform 0.1s, box-shadow 0.1s;
+  }
+  #start-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 0 #a82828, 0 14px 24px rgba(0,0,0,0.25); }
+  #start-btn:active { transform: translateY(4px); box-shadow: 0 4px 0 #a82828, 0 6px 10px rgba(0,0,0,0.2); }
+  #hint {
+    font-size: 0.9rem;
+    color: #636e72;
+    margin-top: 10px;
+  }
+  #counter {
+    position: fixed;
+    top: 15px; right: 20px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    color: #2d3436;
+    background: rgba(255,255,255,0.75);
+    padding: 8px 16px;
+    border-radius: 30px;
+    z-index: 11;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  }
+  #parent-hint {
+    position: fixed;
+    bottom: 10px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.75rem;
+    color: rgba(0,0,0,0.4);
+    z-index: 11;
+    pointer-events: none;
+  }
+  #parent-panel {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 30px;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    z-index: 200;
+    display: none;
+    min-width: 280px;
+    max-width: 90vw;
+  }
+  #parent-panel.open { display: block; }
+  #parent-panel h2 { margin-bottom: 15px; color: #d63031; font-size: 1.5rem; }
+  #parent-panel .row { display: flex; justify-content: space-between; align-items: center; margin: 12px 0; font-size: 1rem; }
+  #parent-panel button {
+    background: #d63031; color: white; border: none;
+    padding: 10px 20px; border-radius: 10px; font-family: inherit; cursor: pointer;
+    font-size: 1rem; margin-top: 10px; width: 100%;
+  }
+  .emoji-burst {
+    position: absolute;
+    font-size: 4rem;
+    pointer-events: none;
+    animation: burst 1.2s ease-out forwards;
+  }
+  @keyframes burst {
+    0% { transform: translate(-50%, -50%) scale(0.3) rotate(0deg); opacity: 1; }
+    50% { transform: translate(-50%, -50%) scale(1.2) rotate(180deg); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(0.8) rotate(360deg); opacity: 0; }
+  }
+  .letter-pop {
+    position: absolute;
+    font-size: 6rem;
+    font-weight: bold;
+    pointer-events: none;
+    animation: letterPop 1s ease-out forwards;
+    text-shadow: 4px 4px 0 rgba(0,0,0,0.2);
+  }
+  @keyframes letterPop {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+    30% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+  }
+  .switch {
+    position: relative; width: 50px; height: 26px;
+    background: #ccc; border-radius: 13px; cursor: pointer; transition: background 0.2s;
+  }
+  .switch.on { background: #7ac74f; }
+  .switch::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 20px; height: 20px; background: white; border-radius: 50%;
+    transition: left 0.2s;
+  }
+  .switch.on::after { left: 27px; }
+</style>
+</head>
+<body>
+
+<div id="start-screen">
+  <h1>🚜 Tiny Tractor 🚜</h1>
+  <p>Let little fingers smash the keys! The tractor will wiggle, honk, spin, and zoom across the field.</p>
+  <button id="start-btn">Start Smashing! 🎉</button>
+  <p id="hint">Goes fullscreen • Type <b>parent</b> to open settings</p>
+</div>
+
+<div id="counter">Keys: 0</div>
+<div id="parent-hint">Type "parent" to open settings</div>
+
+<div id="parent-panel">
+  <h2>👪 Parent Panel</h2>
+  <div class="row">
+    <span>🔊 Sounds</span>
+    <div class="switch on" id="toggle-sound"></div>
+  </div>
+  <div class="row">
+    <span>🎵 Engine loop</span>
+    <div class="switch on" id="toggle-engine"></div>
+  </div>
+  <div class="row">
+    <span>✨ Letter pops</span>
+    <div class="switch on" id="toggle-letters"></div>
+  </div>
+  <div class="row">
+    <span>🎉 Emoji bursts</span>
+    <div class="switch on" id="toggle-emoji"></div>
+  </div>
+  <div class="row">
+    <span>🚒 Vehicle</span>
+    <div style="display: flex; gap: 6px;">
+      <button class="vehicle-btn active" data-vehicle="tractor" style="padding: 6px 14px; border-radius: 20px; border: 2px solid #f07c1a; background: #f07c1a; color: white; cursor: pointer; font-family: inherit; font-size: 0.9rem; margin: 0; width: auto;">🚜 Tractor</button>
+      <button class="vehicle-btn" data-vehicle="firetruck" style="padding: 6px 14px; border-radius: 20px; border: 2px solid #c8202a; background: white; color: #c8202a; cursor: pointer; font-family: inherit; font-size: 0.9rem; margin: 0; width: auto;">🚒 Firetruck</button>
+    </div>
+  </div>
+  <button id="exit-fullscreen">Exit Fullscreen</button>
+  <button id="close-panel" style="background: #636e72;">Close</button>
+</div>
+
+<div id="overlay"></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.module.js';
+
+// ---------- SETTINGS ----------
+const settings = {
+  sound: true,
+  engine: true,
+  letters: true,
+  emoji: true,
+};
+
+// ---------- THREE.JS SCENE ----------
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0xcee7ff, 40, 120);
+
+const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(0, 8, 18);
+camera.lookAt(0, 2, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setClearColor(0x000000, 0);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// ---------- LIGHTING ----------
+const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xfff4d6, 1.2);
+sun.position.set(10, 20, 8);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
+sun.shadow.camera.left = -30;
+sun.shadow.camera.right = 30;
+sun.shadow.camera.top = 30;
+sun.shadow.camera.bottom = -30;
+scene.add(sun);
+
+// ---------- GROUND ----------
+const groundGeom = new THREE.PlaneGeometry(200, 200, 20, 20);
+const groundMat = new THREE.MeshLambertMaterial({ color: 0x7ac74f });
+const ground = new THREE.Mesh(groundGeom, groundMat);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Grass patches
+for (let i = 0; i < 80; i++) {
+  const patch = new THREE.Mesh(
+    new THREE.CircleGeometry(0.5 + Math.random() * 1.5, 8),
+    new THREE.MeshLambertMaterial({ color: Math.random() > 0.5 ? 0x5aa339 : 0x9ad766 })
+  );
+  patch.rotation.x = -Math.PI / 2;
+  patch.position.set((Math.random() - 0.5) * 80, 0.01, (Math.random() - 0.5) * 80);
+  scene.add(patch);
+}
+
+// Scattered wildflowers (yellow, white, pink)
+const flowerColors = [0xfff952, 0xffffff, 0xff9ff3, 0xff7f50];
+for (let i = 0; i < 30; i++) {
+  const flower = new THREE.Mesh(
+    new THREE.SphereGeometry(0.22, 8, 8),
+    new THREE.MeshLambertMaterial({ color: flowerColors[Math.floor(Math.random() * flowerColors.length)] })
+  );
+  flower.position.set((Math.random() - 0.5) * 60, 0.3, (Math.random() - 0.5) * 60);
+  flower.castShadow = true;
+  scene.add(flower);
+}
+
+// ---------- BLUEBONNET PATCHES (Texas!) ----------
+// A bluebonnet is a stalk of tiny blue/purple florets with a white tip
+function makeBluebonnetStalk() {
+  const stalk = new THREE.Group();
+  const green = new THREE.MeshLambertMaterial({ color: 0x3c8a3c });
+  const blue = new THREE.MeshLambertMaterial({ color: 0x2b4c9b });
+  const whiteTip = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  // Stem
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.6, 6), green);
+  stem.position.y = 0.3;
+  stalk.add(stem);
+  // Florets up the stalk
+  for (let i = 0; i < 6; i++) {
+    const floret = new THREE.Mesh(
+      new THREE.SphereGeometry(0.08, 6, 6),
+      i === 5 ? whiteTip : blue
+    );
+    floret.position.y = 0.35 + i * 0.08;
+    floret.position.x = (i % 2 === 0 ? 0.05 : -0.05);
+    stalk.add(floret);
+  }
+  return stalk;
+}
+
+// Create several dense patches
+const bluebonnetPatches = [
+  { cx: -18, cz: -4, count: 25 },
+  { cx: 20, cz: 6, count: 30 },
+  { cx: -8, cz: 15, count: 20 },
+  { cx: 12, cz: -14, count: 25 },
+  { cx: 0, cz: -22, count: 30 },
+];
+bluebonnetPatches.forEach(patch => {
+  for (let i = 0; i < patch.count; i++) {
+    const b = makeBluebonnetStalk();
+    b.position.set(
+      patch.cx + (Math.random() - 0.5) * 5,
+      0,
+      patch.cz + (Math.random() - 0.5) * 5
+    );
+    b.rotation.y = Math.random() * Math.PI;
+    b.scale.setScalar(0.8 + Math.random() * 0.4);
+    scene.add(b);
+  }
+});
+
+// ---------- BARN ----------
+const barn = new THREE.Group();
+const barnRed = new THREE.MeshLambertMaterial({ color: 0xa0302a });
+const barnWhite = new THREE.MeshLambertMaterial({ color: 0xf5f0e1 });
+const barnRoof = new THREE.MeshLambertMaterial({ color: 0x3b2520 });
+const barnDoor = new THREE.MeshLambertMaterial({ color: 0x6b3a1a });
+
+// Main barn body
+const barnBody = new THREE.Mesh(new THREE.BoxGeometry(8, 5, 6), barnRed);
+barnBody.position.y = 2.5;
+barnBody.castShadow = true;
+barnBody.receiveShadow = true;
+barn.add(barnBody);
+
+// Gable roof (two angled planes) - use a triangular prism via BoxGeometry rotated
+const roofL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 3.5, 6.5), barnRoof);
+roofL.position.set(-2, 5.5, 0);
+roofL.rotation.z = Math.PI / 4;
+roofL.scale.set(1, 1.2, 1);
+roofL.castShadow = true;
+barn.add(roofL);
+
+const roofR = roofL.clone();
+roofR.position.set(2, 5.5, 0);
+roofR.rotation.z = -Math.PI / 4;
+barn.add(roofR);
+
+// Gable triangles (front/back) using flattened box
+const gableFront = new THREE.Mesh(new THREE.BoxGeometry(8, 2.5, 0.2), barnRed);
+gableFront.position.set(0, 6.2, 3);
+gableFront.scale.y = 1;
+barn.add(gableFront);
+const gableBack = gableFront.clone();
+gableBack.position.z = -3;
+barn.add(gableBack);
+
+// White X cross-beams on front door
+const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(3.5, 3.5, 0.15), barnDoor);
+doorFrame.position.set(0, 1.75, 3.05);
+barn.add(doorFrame);
+
+const xBeam1 = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.25, 0.1), barnWhite);
+xBeam1.position.set(0, 1.75, 3.15);
+xBeam1.rotation.z = Math.PI / 4;
+barn.add(xBeam1);
+const xBeam2 = xBeam1.clone();
+xBeam2.rotation.z = -Math.PI / 4;
+barn.add(xBeam2);
+
+// Cupola on roof
+const cupola = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), barnWhite);
+cupola.position.set(0, 7.8, 0);
+barn.add(cupola);
+const cupolaRoof = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.8, 4), barnRoof);
+cupolaRoof.position.set(0, 8.6, 0);
+cupolaRoof.rotation.y = Math.PI / 4;
+barn.add(cupolaRoof);
+
+// Position barn in background
+barn.position.set(-18, 0, -20);
+barn.rotation.y = 0.3;
+scene.add(barn);
+
+// A few trees near the barn
+function makeTree() {
+  const tree = new THREE.Group();
+  const trunk = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.3, 0.4, 2, 8),
+    new THREE.MeshLambertMaterial({ color: 0x5a3a22 })
+  );
+  trunk.position.y = 1;
+  trunk.castShadow = true;
+  tree.add(trunk);
+  const leaves = new THREE.Mesh(
+    new THREE.SphereGeometry(1.8, 12, 12),
+    new THREE.MeshLambertMaterial({ color: 0x4a8a3a })
+  );
+  leaves.position.y = 3;
+  leaves.castShadow = true;
+  tree.add(leaves);
+  return tree;
+}
+const tree1 = makeTree();
+tree1.position.set(-28, 0, -15);
+tree1.scale.setScalar(1.3);
+scene.add(tree1);
+const tree2 = makeTree();
+tree2.position.set(-10, 0, -25);
+tree2.scale.setScalar(1.1);
+scene.add(tree2);
+const tree3 = makeTree();
+tree3.position.set(22, 0, -18);
+tree3.scale.setScalar(1.2);
+scene.add(tree3);
+
+// Clouds
+const clouds = [];
+for (let i = 0; i < 8; i++) {
+  const cloud = new THREE.Group();
+  for (let j = 0; j < 4; j++) {
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(1.5 + Math.random() * 0.5, 12, 12),
+      new THREE.MeshLambertMaterial({ color: 0xffffff })
+    );
+    puff.position.set(j * 1.3 - 2, Math.random() * 0.5, 0);
+    cloud.add(puff);
+  }
+  cloud.position.set((Math.random() - 0.5) * 100, 15 + Math.random() * 5, -20 - Math.random() * 20);
+  cloud.userData.speed = 0.01 + Math.random() * 0.02;
+  scene.add(cloud);
+  clouds.push(cloud);
+}
+
+// ---------- VEHICLE (swappable tractor / firetruck) ----------
+const vehicle = new THREE.Group();
+scene.add(vehicle);
+
+// Shared materials
+const darkMat = new THREE.MeshLambertMaterial({ color: 0x2d3436 });
+const chromeMat = new THREE.MeshLambertMaterial({ color: 0xb0b0b0 });
+
+// ---- Wheel factory (CORRECTLY ORIENTED) ----
+// The vehicle points along +X. Wheels must roll around the Z-axis,
+// so the cylinder axis (default Y) is rotated to lie along Z via rotation.x = PI/2.
+// Each wheel group's rotation.z will spin the wheel as it moves.
+function makeWheel(radius, hubColor) {
+  const group = new THREE.Group();
+  const hubMat = new THREE.MeshLambertMaterial({ color: hubColor });
+
+  // Tire: cylinder lying on its side, axis along Z
+  const tire = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius, radius, 0.4, 20),
+    darkMat
+  );
+  tire.rotation.x = Math.PI / 2;  // tip cylinder so its axis is along Z
+  tire.castShadow = true;
+  group.add(tire);
+
+  // Hub
+  const hub = new THREE.Mesh(
+    new THREE.CylinderGeometry(radius * 0.45, radius * 0.45, 0.42, 12),
+    hubMat
+  );
+  hub.rotation.x = Math.PI / 2;
+  group.add(hub);
+
+  // Spokes — rotate around Z so they appear as a cross on the wheel face
+  for (let i = 0; i < 4; i++) {
+    const spoke = new THREE.Mesh(
+      new THREE.BoxGeometry(0.08, radius * 1.8, 0.05),
+      hubMat
+    );
+    spoke.rotation.z = (i * Math.PI) / 4;
+    group.add(spoke);
+  }
+  return group;
+}
+
+// Wheel slot placeholders — we fill these when building vehicle
+let frontWheelL, frontWheelR, rearWheelL, rearWheelR;
+let headlight1, headlight2;
+let lightBar = null; // firetruck only
+
+function clearVehicle() {
+  while (vehicle.children.length) {
+    const c = vehicle.children[0];
+    vehicle.remove(c);
+  }
+  lightBar = null;
+}
+
+function buildTractor() {
+  clearVehicle();
+
+  // Kubota orange body color
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xf07c1a });
+  const accentMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+
+  // Hood
+  const hood = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.2, 2.2), bodyMat);
+  hood.position.set(1, 1.4, 0);
+  hood.castShadow = true;
+  vehicle.add(hood);
+
+  // Grille
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.8, 1.5), darkMat);
+  grille.position.set(1.95, 1.3, 0);
+  vehicle.add(grille);
+
+  // Cab
+  const cabBase = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.6, 2), bodyMat);
+  cabBase.position.set(-0.7, 1.8, 0);
+  cabBase.castShadow = true;
+  vehicle.add(cabBase);
+
+  // White roof (Kubota style)
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2, 0.2, 2.2), accentMat);
+  roof.position.set(-0.7, 2.7, 0);
+  roof.castShadow = true;
+  vehicle.add(roof);
+
+  // Windshield
+  const windshield = new THREE.Mesh(
+    new THREE.BoxGeometry(0.1, 1.2, 1.6),
+    new THREE.MeshLambertMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.6 })
+  );
+  windshield.position.set(0.25, 1.9, 0);
+  vehicle.add(windshield);
+
+  // Exhaust pipe
+  const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 1.2, 12), chromeMat);
+  exhaust.position.set(1.6, 2, 0.7);
+  exhaust.castShadow = true;
+  vehicle.add(exhaust);
+
+  // Headlights
+  const headlightMat = new THREE.MeshLambertMaterial({ color: 0xffffaa, emissive: 0xffff00, emissiveIntensity: 0.5 });
+  headlight1 = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), headlightMat);
+  headlight1.position.set(2, 1.5, 0.6);
+  vehicle.add(headlight1);
+  headlight2 = headlight1.clone();
+  headlight2.position.set(2, 1.5, -0.6);
+  vehicle.add(headlight2);
+
+  // Front wheels (smaller) — Kubota orange hubs
+  frontWheelL = makeWheel(0.5, 0xf07c1a);
+  frontWheelL.position.set(1.3, 0.5, 1.1);
+  vehicle.add(frontWheelL);
+
+  frontWheelR = makeWheel(0.5, 0xf07c1a);
+  frontWheelR.position.set(1.3, 0.5, -1.1);
+  vehicle.add(frontWheelR);
+
+  // Rear wheels (bigger)
+  rearWheelL = makeWheel(0.9, 0xf07c1a);
+  rearWheelL.position.set(-1, 0.9, 1.3);
+  vehicle.add(rearWheelL);
+
+  rearWheelR = makeWheel(0.9, 0xf07c1a);
+  rearWheelR.position.set(-1, 0.9, -1.3);
+  vehicle.add(rearWheelR);
+
+  // Smile face on the front
+  const eyeWhiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.15, 12, 12), eyeWhiteMat);
+  eye1.position.set(2.05, 1.8, 0.4);
+  vehicle.add(eye1);
+  const eye2 = eye1.clone();
+  eye2.position.set(2.05, 1.8, -0.4);
+  vehicle.add(eye2);
+  const pupil1 = new THREE.Mesh(new THREE.SphereGeometry(0.07, 12, 12), darkMat);
+  pupil1.position.set(2.15, 1.8, 0.4);
+  vehicle.add(pupil1);
+  const pupil2 = pupil1.clone();
+  pupil2.position.set(2.15, 1.8, -0.4);
+  vehicle.add(pupil2);
+}
+
+function buildFiretruck() {
+  clearVehicle();
+
+  // Fire-engine red
+  const bodyMat = new THREE.MeshLambertMaterial({ color: 0xc8202a });
+  const silverMat = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+
+  // Cab (front)
+  const cab = new THREE.Mesh(new THREE.BoxGeometry(2, 1.8, 2.4), bodyMat);
+  cab.position.set(1.2, 1.6, 0);
+  cab.castShadow = true;
+  vehicle.add(cab);
+
+  // Cab roof
+  const cabRoof = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.15, 2.5), darkMat);
+  cabRoof.position.set(1.2, 2.6, 0);
+  vehicle.add(cabRoof);
+
+  // Windshield
+  const windshield = new THREE.Mesh(
+    new THREE.BoxGeometry(0.15, 1, 2),
+    new THREE.MeshLambertMaterial({ color: 0x87ceeb, transparent: true, opacity: 0.65 })
+  );
+  windshield.position.set(2.15, 1.9, 0);
+  vehicle.add(windshield);
+
+  // Rear body (equipment bay)
+  const rearBody = new THREE.Mesh(new THREE.BoxGeometry(2.8, 2, 2.4), bodyMat);
+  rearBody.position.set(-1, 1.5, 0);
+  rearBody.castShadow = true;
+  vehicle.add(rearBody);
+
+  // White stripe along both sides
+  const stripeL = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.3, 0.05), new THREE.MeshLambertMaterial({ color: 0xffffff }));
+  stripeL.position.set(0.1, 1.4, 1.23);
+  vehicle.add(stripeL);
+  const stripeR = stripeL.clone();
+  stripeR.position.z = -1.23;
+  vehicle.add(stripeR);
+
+  // Side compartment doors (silver panels)
+  for (let i = 0; i < 2; i++) {
+    const doorL = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.9, 0.05), silverMat);
+    doorL.position.set(-1.7 + i * 1.2, 1.1, 1.23);
+    vehicle.add(doorL);
+    const doorR = doorL.clone();
+    doorR.position.z = -1.23;
+    vehicle.add(doorR);
+  }
+
+  // Ladder on top
+  const ladderRailL = new THREE.Mesh(new THREE.BoxGeometry(3.5, 0.08, 0.08), silverMat);
+  ladderRailL.position.set(-1, 2.75, 0.5);
+  vehicle.add(ladderRailL);
+  const ladderRailR = ladderRailL.clone();
+  ladderRailR.position.z = -0.5;
+  vehicle.add(ladderRailR);
+  for (let i = 0; i < 8; i++) {
+    const rung = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 1), silverMat);
+    rung.position.set(-2.5 + i * 0.45, 2.75, 0);
+    vehicle.add(rung);
+  }
+
+  // Flashing light bar on cab roof
+  lightBar = new THREE.Group();
+  const lightBase = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.2, 0.5), darkMat);
+  lightBar.add(lightBase);
+  const redLight = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 12, 12),
+    new THREE.MeshLambertMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.8 })
+  );
+  redLight.position.x = -0.35;
+  redLight.name = 'redLight';
+  lightBar.add(redLight);
+  const blueLight = new THREE.Mesh(
+    new THREE.SphereGeometry(0.18, 12, 12),
+    new THREE.MeshLambertMaterial({ color: 0x0080ff, emissive: 0x0080ff, emissiveIntensity: 0.8 })
+  );
+  blueLight.position.x = 0.35;
+  blueLight.name = 'blueLight';
+  lightBar.add(blueLight);
+  lightBar.position.set(1.2, 2.85, 0);
+  vehicle.add(lightBar);
+
+  // Front bumper
+  const bumper = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.4, 2.6), silverMat);
+  bumper.position.set(2.25, 0.7, 0);
+  vehicle.add(bumper);
+
+  // Grille
+  const grille = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.7, 1.8), darkMat);
+  grille.position.set(2.2, 1.2, 0);
+  vehicle.add(grille);
+
+  // Headlights
+  const headlightMat = new THREE.MeshLambertMaterial({ color: 0xffffaa, emissive: 0xffff00, emissiveIntensity: 0.5 });
+  headlight1 = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.3), headlightMat);
+  headlight1.position.set(2.25, 1.5, 1);
+  vehicle.add(headlight1);
+  headlight2 = headlight1.clone();
+  headlight2.position.set(2.25, 1.5, -1);
+  vehicle.add(headlight2);
+
+  // Wheels — all the same size
+  frontWheelL = makeWheel(0.7, 0x888888);
+  frontWheelL.position.set(1.5, 0.7, 1.3);
+  vehicle.add(frontWheelL);
+
+  frontWheelR = makeWheel(0.7, 0x888888);
+  frontWheelR.position.set(1.5, 0.7, -1.3);
+  vehicle.add(frontWheelR);
+
+  rearWheelL = makeWheel(0.7, 0x888888);
+  rearWheelL.position.set(-1.5, 0.7, 1.3);
+  vehicle.add(rearWheelL);
+
+  rearWheelR = makeWheel(0.7, 0x888888);
+  rearWheelR.position.set(-1.5, 0.7, -1.3);
+  vehicle.add(rearWheelR);
+
+  // Friendly face
+  const eyeWhiteMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const eye1 = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), eyeWhiteMat);
+  eye1.position.set(2.3, 1.9, 0.55);
+  vehicle.add(eye1);
+  const eye2 = eye1.clone();
+  eye2.position.set(2.3, 1.9, -0.55);
+  vehicle.add(eye2);
+  const pupil1 = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 12), darkMat);
+  pupil1.position.set(2.4, 1.9, 0.55);
+  vehicle.add(pupil1);
+  const pupil2 = pupil1.clone();
+  pupil2.position.set(2.4, 1.9, -0.55);
+  vehicle.add(pupil2);
+}
+
+// Build initial vehicle (tractor)
+buildTractor();
+// Alias for the rest of the code
+const tractor = vehicle;
+
+// ---------- PARTICLE DUST PUFFS ----------
+const dustPuffs = [];
+function spawnDust(x, z) {
+  for (let i = 0; i < 6; i++) {
+    const puff = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3 + Math.random() * 0.2, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xdcc89b, transparent: true, opacity: 0.8 })
+    );
+    puff.position.set(x + (Math.random() - 0.5) * 0.5, 0.3, z + (Math.random() - 0.5) * 0.5);
+    puff.userData.vy = 0.03 + Math.random() * 0.04;
+    puff.userData.vx = (Math.random() - 0.5) * 0.05;
+    puff.userData.vz = (Math.random() - 0.5) * 0.05;
+    puff.userData.life = 1;
+    scene.add(puff);
+    dustPuffs.push(puff);
+  }
+}
+
+// ---------- CONFETTI ----------
+const confetti = [];
+function spawnConfetti() {
+  const colors = [0xff6b6b, 0xfff952, 0x4ecdc4, 0xff9ff3, 0x95e1d3, 0xf38181];
+  for (let i = 0; i < 15; i++) {
+    const piece = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.2, 0.3),
+      new THREE.MeshLambertMaterial({ color: colors[Math.floor(Math.random() * colors.length)], side: THREE.DoubleSide })
+    );
+    piece.position.set(tractor.position.x, 4, tractor.position.z);
+    piece.userData.vx = (Math.random() - 0.5) * 0.3;
+    piece.userData.vy = 0.1 + Math.random() * 0.15;
+    piece.userData.vz = (Math.random() - 0.5) * 0.3;
+    piece.userData.rx = (Math.random() - 0.5) * 0.2;
+    piece.userData.ry = (Math.random() - 0.5) * 0.2;
+    piece.userData.life = 1;
+    scene.add(piece);
+    confetti.push(piece);
+  }
+}
+
+// ---------- AUDIO ----------
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration = 0.2, type = 'sine', volume = 0.15) {
+  if (!settings.sound || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+
+function playHonk() {
+  if (!settings.sound || !audioCtx) return;
+  playTone(320, 0.15, 'square', 0.2);
+  setTimeout(() => playTone(260, 0.2, 'square', 0.2), 120);
+}
+
+function playEngineRev() {
+  if (!settings.sound || !audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+  osc.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.3);
+  osc.frequency.exponentialRampToValueAtTime(120, audioCtx.currentTime + 0.5);
+  gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + 0.5);
+}
+
+// ---------- GAME STATE ----------
+let targetX = 0;
+let targetZ = 0;
+let targetRotation = 0;
+let currentRotation = 0;
+let bounceOffset = 0;
+let bouncePhase = 0;
+let tiltZ = 0;
+let wheelSpin = 0;
+let jumpVelocity = 0;
+let jumpHeight = 0;
+let keyCount = 0;
+const counter = document.getElementById('counter');
+const overlay = document.getElementById('overlay');
+
+// Emojis for bursts
+const fieldEmojis = ['🌻', '🌽', '🥕', '🍎', '🐄', '🐖', '🐔', '🌾', '🐑', '🐴', '🐰', '⭐', '💨', '✨', '🎈', '🌈'];
+
+function spawnLetterPop(key, x, y) {
+  if (!settings.letters) return;
+  const el = document.createElement('div');
+  el.className = 'letter-pop';
+  el.textContent = key.toUpperCase();
+  const hue = Math.floor(Math.random() * 360);
+  el.style.color = `hsl(${hue}, 90%, 55%)`;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  overlay.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function spawnEmojiBurst(x, y) {
+  if (!settings.emoji) return;
+  const el = document.createElement('div');
+  el.className = 'emoji-burst';
+  el.textContent = fieldEmojis[Math.floor(Math.random() * fieldEmojis.length)];
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  overlay.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+// ---------- KEY HANDLING ----------
+const typed = [];
+// ---------- KEYBOARD POSITION MAP ----------
+// A full keyboard grid, left-to-right and top-to-bottom, covering everything
+// a toddler could mash. Each key is mapped to its real physical position so
+// smashing gives a predictable directional nudge. e.key values are used
+// (lowercased for letters) — special keys use their standard names.
+const keyboardRows = [
+  // Row 0: function row (treated as "very top")
+  ['escape','f1','f2','f3','f4','f5','f6','f7','f8','f9','f10','f11','f12'],
+  // Row 1: number row + backtick + backspace
+  ['`','1','2','3','4','5','6','7','8','9','0','-','=','backspace'],
+  // Row 2: tab + QWERTY row
+  ['tab','q','w','e','r','t','y','u','i','o','p','[',']','\\'],
+  // Row 3: capslock + home row + enter
+  ['capslock','a','s','d','f','g','h','j','k','l',';','\'','enter'],
+  // Row 4: shift + bottom row + shift
+  ['shift','z','x','c','v','b','n','m',',','.','/','shift'],
+  // Row 5: bottom-most (treated as most "toward camera")
+  ['control','alt','meta',' ','meta','alt','control','arrowleft','arrowup','arrowdown','arrowright'],
+];
+
+// Build a fast lookup: key -> { rowIndex, colFrac }
+const keyPositions = {};
+keyboardRows.forEach((row, rowIndex) => {
+  row.forEach((k, colIndex) => {
+    const colFrac = (colIndex / Math.max(1, row.length - 1)) * 2 - 1;
+    // Don't overwrite — first occurrence wins (so left 'shift' beats right 'shift')
+    if (!(k in keyPositions)) {
+      keyPositions[k] = { rowIndex, colFrac };
+    }
+  });
+});
+
+// Hash-based fallback for anything genuinely unmapped (rare: international
+// characters, media keys, Fn+key combos). Uses the key name's char codes
+// to pick a stable pseudo-position, so the same key always moves the same way.
+function hashFallback(k) {
+  let h = 0;
+  for (let i = 0; i < k.length; i++) h = (h * 31 + k.charCodeAt(i)) >>> 0;
+  const rowIndex = 1 + (h % 4);          // rows 1..4 (skip function row)
+  const colFrac = ((h % 100) / 99) * 2 - 1; // -1..+1
+  return { rowIndex, colFrac };
+}
+
+// Returns {dx, dz} movement deltas based on keyboard position.
+// dx = left/right (negative = left), dz = forward/back (negative = away from camera = "up")
+// The row index maps to how much forward/backward push — top rows push away,
+// bottom rows push toward the camera, with home row as the neutral axis.
+function getMoveFromKey(k) {
+  let pos = keyPositions[k];
+  if (!pos) pos = hashFallback(k);
+  // Row 0 = function row (farthest up), Row 5 = space/arrows (farthest down)
+  const rowToDz = [-1.2, -1.0, -0.6, 0, 0.6, 1.0];
+  const dz = rowToDz[pos.rowIndex] ?? 0;
+  const dx = pos.colFrac;
+  return { dx, dz };
+}
+
+function handleKeyAction(key) {
+  initAudio();
+  keyCount++;
+  counter.textContent = 'Keys: ' + keyCount;
+
+  // Parent panel trigger
+  typed.push(key.toLowerCase());
+  if (typed.length > 10) typed.shift();
+  if (typed.join('').includes('parent')) {
+    document.getElementById('parent-panel').classList.add('open');
+    typed.length = 0;
+  }
+
+  // Visual pops at random location
+  const px = Math.random() * window.innerWidth;
+  const py = Math.random() * window.innerHeight * 0.7 + window.innerHeight * 0.15;
+  spawnLetterPop(key, px, py);
+  if (Math.random() > 0.5) {
+    spawnEmojiBurst(Math.random() * window.innerWidth, Math.random() * window.innerHeight * 0.7);
+  }
+
+  const k = key.toLowerCase();
+
+  // Space = jump + honk (stays in place)
+  if (k === ' ' || k === 'spacebar') {
+    jumpVelocity = 0.35;
+    playHonk();
+    spawnConfetti();
+    return;
+  }
+
+  // --- Determine movement vector (dx, dz) for this key ---
+  // Facing convention: the vehicle's "forward" is along its local +X axis.
+  //   rotation.y = 0        -> facing +X  (right)
+  //   rotation.y = PI       -> facing -X  (left)
+  //   rotation.y = PI/2     -> facing -Z  (up / away from camera)
+  //   rotation.y = -PI/2    -> facing +Z  (down / toward camera)
+  const ARROW_STEPS = {
+    arrowright: { dx:  2, dz:  0 },
+    arrowleft:  { dx: -2, dz:  0 },
+    arrowup:    { dx:  0, dz: -2 },
+    arrowdown:  { dx:  0, dz:  2 },
+  };
+  let dx = 0, dz = 0;
+  let isBigMove = false;
+  if (ARROW_STEPS[k]) {
+    dx = ARROW_STEPS[k].dx;
+    dz = ARROW_STEPS[k].dz;
+    isBigMove = true;
+  } else {
+    const move = getMoveFromKey(k);
+    if (move) {
+      // Small nudge for quadrant-based keys
+      const step = 0.8;
+      dx = move.dx * step;
+      dz = move.dz * step;
+    }
+  }
+
+  // Decorative bounce on every key
+  bouncePhase = Math.PI * 2;
+  const notes = [262, 294, 330, 349, 392, 440, 494, 523];
+  playTone(notes[Math.floor(Math.random() * notes.length)], 0.2, 'triangle', 0.15);
+
+  // If there's a meaningful movement, steer the vehicle to face that direction
+  // and drive it. Below a small threshold, keys just bounce in place — this
+  // stops centrally-placed keys (like G or H) from causing flicker.
+  const magnitude = Math.hypot(dx, dz);
+  if (magnitude > 0.15) {
+    // Face the direction of travel.
+    // atan2 gives us the world angle of the movement vector, then we convert
+    // to our facing convention. Our +X forward means rotation.y should equal
+    // the angle of (dx, -dz) measured from +X. Using atan2(-dz, dx) gives that.
+    const desiredFacing = Math.atan2(-dz, dx);
+
+    // Pick the shortest rotation path so we never do a full spin to turn around.
+    const norm = a => Math.atan2(Math.sin(a), Math.cos(a));
+    const delta = norm(desiredFacing - targetRotation);
+    targetRotation = targetRotation + delta;
+
+    // Check whether we're already roughly facing the target direction.
+    // If yes, drive. If not, this press is a "turn" — the rotation above
+    // already took effect, and the NEXT same-direction press will drive.
+    const currentFacingErr = Math.abs(norm(currentRotation - desiredFacing));
+    const alreadyFacing = currentFacingErr < 0.6; // ~34° tolerance
+
+    if (alreadyFacing || !isBigMove) {
+      // Quadrant keys always drive (their moves are small, so turning + driving
+      // at once still looks natural). Arrow keys only drive when already aimed.
+      targetX = Math.max(-15, Math.min(15, targetX + dx));
+      targetZ = Math.max(-12, Math.min(10, targetZ + dz));
+      spawnDust(tractor.position.x - Math.sign(dx) * 0.8,
+                tractor.position.z - Math.sign(dz) * 0.8);
+    }
+    playEngineRev();
+  }
+
+  if (Math.random() < 0.08) playHonk();
+  if (Math.random() < 0.12) spawnConfetti();
+}
+
+document.addEventListener('keydown', (e) => {
+  // Escape is the only key we never intercept — parents need it as an exit
+  if (e.key === 'Escape') return;
+  // F11 passes through so fullscreen toggle still works
+  if (e.key === 'F11') return;
+
+  // Let modifier COMBOS through to the browser (so Ctrl+W, Cmd+Q etc. still
+  // work for emergencies), but handle modifier keys pressed ALONE as normal
+  // keypresses — pressing just Ctrl or Shift should move the vehicle.
+  const isModifierAlone =
+    e.key === 'Control' || e.key === 'Shift' ||
+    e.key === 'Alt' || e.key === 'Meta';
+  const isCombo = (e.ctrlKey || e.metaKey || e.altKey) && !isModifierAlone;
+  if (isCombo) return;
+
+  e.preventDefault();
+  handleKeyAction(e.key);
+});
+
+// Also respond to clicks/taps
+document.addEventListener('click', (e) => {
+  if (e.target.closest('#parent-panel') || e.target.closest('#start-screen')) return;
+  handleKeyAction('*');
+});
+
+// ---------- RESIZE ----------
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// ---------- ANIMATION LOOP ----------
+const clock = new THREE.Clock();
+function animate() {
+  const dt = clock.getDelta();
+  const t = clock.getElapsedTime();
+
+  // Smooth tractor movement
+  tractor.position.x += (targetX - tractor.position.x) * 0.08;
+  tractor.position.z += (targetZ - tractor.position.z) * 0.08;
+
+  // Movement detection for wheel spinning
+  const moving = Math.abs(targetX - tractor.position.x) > 0.05 || Math.abs(targetZ - tractor.position.z) > 0.05;
+  if (moving) wheelSpin += 0.3;
+
+  // Rotation
+  currentRotation += (targetRotation - currentRotation) * 0.1;
+  tractor.rotation.y = currentRotation;
+
+  // Bounce
+  if (bouncePhase > 0) {
+    bounceOffset = Math.sin((1 - bouncePhase / (Math.PI * 2)) * Math.PI) * 0.4;
+    bouncePhase -= 0.15;
+    if (bouncePhase < 0) { bouncePhase = 0; bounceOffset = 0; }
+  }
+
+  // Jump
+  jumpHeight += jumpVelocity;
+  jumpVelocity -= 0.025;
+  if (jumpHeight < 0) { jumpHeight = 0; jumpVelocity = 0; }
+
+  tractor.position.y = bounceOffset + jumpHeight + Math.sin(t * 3) * 0.05;
+
+  // Wiggle
+  tractor.rotation.z = Math.sin(t * 4) * 0.02;
+
+  // Spin wheels around Z (cylinder axis is along Z, so this rolls them)
+  // Flip sign so they roll in the visually correct direction when moving +X
+  frontWheelL.rotation.z = -wheelSpin;
+  frontWheelR.rotation.z = -wheelSpin;
+  rearWheelL.rotation.z = -wheelSpin * 0.6;
+  rearWheelR.rotation.z = -wheelSpin * 0.6;
+
+  // Headlight flicker when active
+  headlight1.material.emissiveIntensity = 0.4 + Math.sin(t * 10) * 0.1;
+  headlight2.material.emissiveIntensity = 0.4 + Math.sin(t * 10) * 0.1;
+
+  // Firetruck flashing lights (only when firetruck is active)
+  if (lightBar) {
+    const phase = Math.sin(t * 10);
+    const red = lightBar.getObjectByName('redLight');
+    const blue = lightBar.getObjectByName('blueLight');
+    if (red) red.material.emissiveIntensity = phase > 0 ? 1.2 : 0.1;
+    if (blue) blue.material.emissiveIntensity = phase > 0 ? 0.1 : 1.2;
+  }
+
+  // Camera follow (gently)
+  camera.position.x += (tractor.position.x * 0.3 - camera.position.x) * 0.05;
+  camera.lookAt(tractor.position.x, 2, tractor.position.z);
+
+  // Clouds
+  clouds.forEach(cloud => {
+    cloud.position.x += cloud.userData.speed;
+    if (cloud.position.x > 60) cloud.position.x = -60;
+  });
+
+  // Dust puffs
+  for (let i = dustPuffs.length - 1; i >= 0; i--) {
+    const p = dustPuffs[i];
+    p.position.x += p.userData.vx;
+    p.position.y += p.userData.vy;
+    p.position.z += p.userData.vz;
+    p.scale.multiplyScalar(1.03);
+    p.userData.life -= 0.02;
+    p.material.opacity = p.userData.life * 0.8;
+    if (p.userData.life <= 0) {
+      scene.remove(p);
+      p.geometry.dispose();
+      p.material.dispose();
+      dustPuffs.splice(i, 1);
+    }
+  }
+
+  // Confetti
+  for (let i = confetti.length - 1; i >= 0; i--) {
+    const c = confetti[i];
+    c.position.x += c.userData.vx;
+    c.position.y += c.userData.vy;
+    c.position.z += c.userData.vz;
+    c.userData.vy -= 0.008;
+    c.rotation.x += c.userData.rx;
+    c.rotation.y += c.userData.ry;
+    c.userData.life -= 0.01;
+    if (c.position.y < 0 || c.userData.life <= 0) {
+      scene.remove(c);
+      c.geometry.dispose();
+      c.material.dispose();
+      confetti.splice(i, 1);
+    }
+  }
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ---------- FULLSCREEN & START ----------
+const startScreen = document.getElementById('start-screen');
+const startBtn = document.getElementById('start-btn');
+startBtn.addEventListener('click', async () => {
+  initAudio();
+  try {
+    if (document.documentElement.requestFullscreen) {
+      await document.documentElement.requestFullscreen();
+    }
+  } catch (e) { /* fullscreen may be blocked; still let them play */ }
+  startScreen.style.display = 'none';
+  // Welcome honk
+  setTimeout(() => { playHonk(); spawnConfetti(); }, 300);
+});
+
+// ---------- PARENT PANEL CONTROLS ----------
+function bindSwitch(id, key) {
+  const sw = document.getElementById(id);
+  sw.addEventListener('click', () => {
+    settings[key] = !settings[key];
+    sw.classList.toggle('on', settings[key]);
+  });
+}
+bindSwitch('toggle-sound', 'sound');
+bindSwitch('toggle-engine', 'engine');
+bindSwitch('toggle-letters', 'letters');
+bindSwitch('toggle-emoji', 'emoji');
+
+document.getElementById('close-panel').addEventListener('click', () => {
+  document.getElementById('parent-panel').classList.remove('open');
+});
+document.getElementById('exit-fullscreen').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  document.getElementById('parent-panel').classList.remove('open');
+});
+
+// Vehicle type toggle
+document.querySelectorAll('.vehicle-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const type = btn.dataset.vehicle;
+    if (type === 'tractor') {
+      buildTractor();
+    } else {
+      buildFiretruck();
+    }
+    // Update button styles
+    document.querySelectorAll('.vehicle-btn').forEach(b => {
+      const isActive = b === btn;
+      const isTractor = b.dataset.vehicle === 'tractor';
+      b.style.background = isActive ? (isTractor ? '#f07c1a' : '#c8202a') : 'white';
+      b.style.color = isActive ? 'white' : (isTractor ? '#f07c1a' : '#c8202a');
+      b.classList.toggle('active', isActive);
+    });
+    // Welcome honk for the new vehicle
+    playHonk();
+  });
+});
+
+</script>
+
+</body>
+</html>
